@@ -245,10 +245,13 @@ int main(int argc, char** argv){
 
         // --- 6. Trajectory output ---
         if(step % traj_interval == 0) {
-            traj_file << mol.getnum_atoms() << "\n"
-                    << "Step=" << step 
-                    << " Energy=" << ourSCF.getEnergy()  // Now using ourSCF
-                    << " Temperature=" << thermostat.current_temperature() << "\n";
+            traj_file << mol.getnum_atoms() << "\n";
+            traj_file << "Lattice=\""
+                      << mol.getLatticeVector(0)(0) << " " << mol.getLatticeVector(0)(1) << " " << mol.getLatticeVector(0)(2) << " "
+                      << mol.getLatticeVector(1)(0) << " " << mol.getLatticeVector(1)(1) << " " << mol.getLatticeVector(1)(2) << " "
+                      << mol.getLatticeVector(2)(0) << " " << mol.getLatticeVector(2)(1) << " " << mol.getLatticeVector(2)(2) << "\" "
+                      << "Step=" << step << " Energy=" << ourSCF.getEnergy()  // Now using ourSCF
+                      << " Temperature=" << thermostat.current_temperature() << "\n";
             
             for(int i=0; i<mol.getnum_atoms(); i++) {
                 arma::vec pos = mol.mAtoms[i].mAOs[0].get_R0();
