@@ -110,7 +110,7 @@ class Molecule_basis{
         arma::vec getLatticeVector(int dim) const;
 
         arma::vec3 minimum_image(const arma::vec3& dr) const;
-        void detectBonds(double threshold = 1.8);
+        void detectBonds(double threshold);
 
 };
 
@@ -483,7 +483,7 @@ void Molecule_basis::eval_nuc_1st(arma::mat &nuc_1st){
 
 
 
-
+/*
 void Molecule_basis::applyPBC() {
     for (auto& atom : mAtoms) {
         arma::vec R = atom.mAOs[0].get_R0();
@@ -495,6 +495,43 @@ void Molecule_basis::applyPBC() {
         atom.set_R0(R);
     }
 }
+*/
+
+void Molecule_basis::applyPBC() {
+    if(mAtoms.empty()) return;
+
+    // 1. Calculate molecular center
+    arma::vec3 mol_center = arma::vec(3, arma::fill::zeros);
+    for(const auto& atom : mAtoms) {
+        mol_center += atom.mAOs[0].get_R0();
+    }
+    mol_center /= mAtoms.size();
+
+    // 2. Calculate required shift to bring center to [0, L)
+    arma::vec3 shift;
+    for(int dim = 0; dim < 3; ++dim) {
+        if(pbc[dim]) {
+            shift(dim) = box_size[dim] * std::round(mol_center(dim)/box_size[dim]);
+        }
+    }
+
+    // 3. Apply unified shift to all atoms
+    for(auto& atom : mAtoms) {
+        arma::vec R = atom.mAOs[0].get_R0();
+        R -= shift;
+        
+        // 4. Final per-atom wrap to [0, L)
+        for(int dim = 0; dim < 3; ++dim) {
+            if(pbc[dim]) {
+                R(dim) -= box_size[dim] * std::floor(R(dim)/box_size[dim]);
+            }
+        }
+        
+        atom.set_R0(R);
+    }
+}
+
+
 
 void Molecule_basis::setBox(double x, double y, double z) {
     box_size = {x, y, z};
@@ -524,6 +561,34 @@ arma::vec3 Molecule_basis::minimum_image(const arma::vec3& dr) const {
     }
     return corrected;
 }
+
+
+
+void Molecule_basis::detectBonds(double threshold) {
+    bonds.clear();
+    size_t bond_count = 0;
+    
+    for(size_t i=0; i<mAtoms.size(); ++i) {
+        for(size_t j=i+1; j<mAtoms.size(); ++j) {
+            arma::vec3 dr = minimum_image(
+                mAtoms[i].mAOs[0].get_R0() - 
+                mAtoms[j].mAOs[0].get_R0()
+            );
+            double dist = arma::norm(dr);
+            
+            if(dist < threshold) {
+                bonds.push_back({(int)i, (int)j, dist});
+                bond_count++;
+            }
+        }
+    }
+    
+    std::cout << "Detected " << bond_count 
+              << " bonds using threshold of " << threshold 
+              << " Å between " << mAtoms.size() << " atoms\n";
+}
+
+
 
 
 
